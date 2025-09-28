@@ -19,21 +19,26 @@ public class FirstScreen implements Screen {
     final Main game;
 
     Texture backgroundTexture;
-    Texture bucketTexture;
+    Texture myTexture;
+    Texture enemyTexture;
     Texture dropTexture;
 
     Sound dropSound;
     Music music;
 
-    Sprite bucketSprite;
+    Sprite mySprite;
+    Sprite enemySprite;
 
     Vector2 touchPos;
 
     Array<Sprite> dropSprites;
     float dropTimer;
 
-    Rectangle bucketRectangle;
+    Rectangle myRectangle;
+    Rectangle enemyRectangle;
+
     Rectangle dropRectangle;
+    Rectangle EnemyRectangle;
 
     int myHP = 10;
     int myDMG = 1;
@@ -45,7 +50,8 @@ public class FirstScreen implements Screen {
 
         // load the images for the background, bucket and droplet
         backgroundTexture = new Texture("background.png");
-        bucketTexture = new Texture("bucket.png");
+        myTexture = new Texture("bucket.png");
+        enemyTexture = new Texture("bucket.png");
         dropTexture = new Texture("drop.png");
 
         // load the drop sound effect and background music
@@ -54,12 +60,20 @@ public class FirstScreen implements Screen {
         music.setLooping(true);
         music.setVolume(0.5F);
 
-        bucketSprite = new Sprite(bucketTexture);
-        bucketSprite.setSize(1, 1);
+        mySprite = new Sprite(myTexture);
+        mySprite.setSize(1, 1);
+        mySprite.setPosition(0,0);
+
+        enemySprite = new Sprite(myTexture);
+        enemySprite.setSize(1, 1);
+        float worldHeight = game.viewport.getWorldHeight();
+        float enemyWidth = enemySprite.getWidth();
+        enemySprite.setPosition(0, worldHeight-enemyWidth);
 
         touchPos = new Vector2();
 
-        bucketRectangle = new Rectangle();
+        myRectangle = new Rectangle();
+        enemyRectangle = new Rectangle();
         dropRectangle = new Rectangle();
 
         dropSprites = new Array<>();
@@ -80,32 +94,52 @@ public class FirstScreen implements Screen {
     }
 
     private void input() {
-        float speed = 4f;
+        float mySpeed = 4f;
+        float enemySpeed = 2f;
         float delta = Gdx.graphics.getDeltaTime();
 
+        //input mySprite movement
+
         if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            bucketSprite.translateX(speed * delta);
+            mySprite.translateX(mySpeed * delta);
         }
         else if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            bucketSprite.translateX(-speed * delta);
+            mySprite.translateX(-mySpeed * delta);
         }
 
         if (Gdx.input.isTouched()) {
             touchPos.set(Gdx.input.getX(), Gdx.input.getY());
             game.viewport.unproject(touchPos);
-            bucketSprite.setCenterX(touchPos.x);
+            mySprite.setCenterX(touchPos.x);
         }
+
+        //enemy movement
+        if (Gdx.input.isKeyPressed(Input.Keys.D)) {
+            enemySprite.translateX(enemySpeed * delta);
+        }
+        else if (Gdx.input.isKeyPressed(Input.Keys.A)) {
+            enemySprite.translateX(-enemySpeed * delta);
+        }
+
     }
 
     private void logic() {
         float worldWidth = game.viewport.getWorldWidth();
         float worldHeight = game.viewport.getWorldHeight();
-        float bucketWidth = bucketSprite.getWidth();
-        float bucketHeight = bucketSprite.getHeight();
+
+        float myWidth = mySprite.getWidth();
+        float myHeight = mySprite.getHeight();
+
+        float enemyWidth = enemySprite.getWidth();
+        float enemyHeight = enemySprite.getHeight();
+
         float delta = Gdx.graphics.getDeltaTime();
 
-        bucketSprite.setX(MathUtils.clamp(bucketSprite.getX(), 0, worldWidth - bucketWidth));
-        bucketRectangle.set(bucketSprite.getX(), bucketSprite.getY(), bucketWidth, bucketHeight);
+        mySprite.setX(MathUtils.clamp(mySprite.getX(), 0, worldWidth - myWidth));
+        myRectangle.set(mySprite.getX(), mySprite.getY(), myWidth, myHeight);
+
+        enemySprite.setX(MathUtils.clamp(enemySprite.getX(), 0, worldWidth - myWidth));
+        enemyRectangle.set(enemySprite.getX(), enemySprite.getY(), enemyWidth, enemyHeight);
 
         for (int i = dropSprites.size - 1; i >= 0; i--) {
             Sprite dropSprite = dropSprites.get(i);
@@ -116,7 +150,7 @@ public class FirstScreen implements Screen {
             dropRectangle.set(dropSprite.getX(), dropSprite.getY(), dropWidth, dropHeight);
 
             if (dropSprite.getY() < -dropHeight) dropSprites.removeIndex(i);
-            else if (bucketRectangle.overlaps(dropRectangle)) {
+            else if (myRectangle.overlaps(dropRectangle)) {
                 myHP -= enemyDMG;
                 dropSprites.removeIndex(i);
                 dropSound.play();
@@ -140,7 +174,9 @@ public class FirstScreen implements Screen {
         float worldHeight = game.viewport.getWorldHeight();
 
         game.batch.draw(backgroundTexture, 0, 0, worldWidth, worldHeight);
-        bucketSprite.draw(game.batch);
+        mySprite.draw(game.batch);
+        enemySprite.draw(game.batch);
+
 
         game.font.draw(game.batch, "myHP: " + myHP +  "\nenemyHP: " + enemyHP, 0, worldHeight);
 
@@ -159,8 +195,8 @@ public class FirstScreen implements Screen {
 
         Sprite dropSprite = new Sprite(dropTexture);
         dropSprite.setSize(dropWidth, dropHeight);
-        dropSprite.setX(MathUtils.random(0F, worldWidth - dropWidth));
-        dropSprite.setY(worldHeight);
+        dropSprite.setX(enemySprite.getX());
+        dropSprite.setY(enemySprite.getY());
         dropSprites.add(dropSprite);
     }
 
@@ -187,6 +223,7 @@ public class FirstScreen implements Screen {
         dropSound.dispose();
         music.dispose();
         dropTexture.dispose();
-        bucketTexture.dispose();
+        myTexture.dispose();
+        enemyTexture.dispose();
     }
 }
