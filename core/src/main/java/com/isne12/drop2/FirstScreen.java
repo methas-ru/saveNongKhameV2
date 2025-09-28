@@ -32,13 +32,15 @@ public class FirstScreen implements Screen {
     Vector2 touchPos;
 
     Array<Sprite> dropSprites;
+    Array<Sprite> myDropSprites;
     float dropTimer;
+    float myDropTimer;
 
     Rectangle myRectangle;
     Rectangle enemyRectangle;
 
     Rectangle dropRectangle;
-    Rectangle EnemyRectangle;
+    Rectangle myDropRectangle;
 
     int myHP = 10;
     int myDMG = 1;
@@ -75,8 +77,10 @@ public class FirstScreen implements Screen {
         myRectangle = new Rectangle();
         enemyRectangle = new Rectangle();
         dropRectangle = new Rectangle();
+        myDropRectangle = new Rectangle();
 
         dropSprites = new Array<>();
+        myDropSprites = new Array<>();
     }
 
     @Override
@@ -113,6 +117,16 @@ public class FirstScreen implements Screen {
             mySprite.setCenterX(touchPos.x);
         }
 
+        //input mySprite shooting
+
+        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
+            myDropTimer += delta;
+            if (myDropTimer > 1f) {
+                myDropTimer = 0;
+                createMyDroplet();
+            }
+        }
+
         //enemy movement
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
             enemySprite.translateX(enemySpeed * delta);
@@ -141,6 +155,7 @@ public class FirstScreen implements Screen {
         enemySprite.setX(MathUtils.clamp(enemySprite.getX(), 0, worldWidth - myWidth));
         enemyRectangle.set(enemySprite.getX(), enemySprite.getY(), enemyWidth, enemyHeight);
 
+        //create enemyDropSprite
         for (int i = dropSprites.size - 1; i >= 0; i--) {
             Sprite dropSprite = dropSprites.get(i);
             float dropWidth = dropSprite.getWidth();
@@ -161,6 +176,23 @@ public class FirstScreen implements Screen {
         if (dropTimer > 1f) {
             dropTimer = 0;
             createDroplet();
+        }
+
+        //create myDropSprite
+        for (int i = myDropSprites.size - 1; i >= 0; i--) {
+            Sprite dropSprite = myDropSprites.get(i);
+            float dropWidth = dropSprite.getWidth();
+            float dropHeight = dropSprite.getHeight();
+
+            dropSprite.translateY(+2f * delta);
+            myDropRectangle.set(dropSprite.getX(), dropSprite.getY(), dropWidth, dropHeight);
+
+            if (dropSprite.getY() < -dropHeight) myDropSprites.removeIndex(i);
+            else if (enemyRectangle.overlaps(myDropRectangle)) {
+                enemyHP -= myDMG;
+                myDropSprites.removeIndex(i);
+                dropSound.play();
+            }
         }
     }
 
@@ -184,6 +216,10 @@ public class FirstScreen implements Screen {
             dropSprite.draw(game.batch);
         }
 
+        for (Sprite myDropSprite : myDropSprites) {
+            myDropSprite.draw(game.batch);
+        }
+
         game.batch.end();
     }
 
@@ -198,6 +234,19 @@ public class FirstScreen implements Screen {
         dropSprite.setX(enemySprite.getX());
         dropSprite.setY(enemySprite.getY());
         dropSprites.add(dropSprite);
+    }
+
+    private void createMyDroplet() {
+        float dropWidth = 1f;
+        float dropHeight = 1f;
+        float worldWidth = game.viewport.getWorldWidth();
+        float worldHeight = game.viewport.getWorldHeight();
+
+        Sprite dropSprite = new Sprite(dropTexture);
+        dropSprite.setSize(dropWidth, dropHeight);
+        dropSprite.setX(mySprite.getX());
+        dropSprite.setY(mySprite.getY());
+        myDropSprites.add(dropSprite);
     }
 
     @Override
