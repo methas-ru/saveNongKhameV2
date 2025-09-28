@@ -21,15 +21,24 @@ public class FirstScreen implements Screen {
     Texture backgroundTexture;
     Texture bucketTexture;
     Texture dropTexture;
+
     Sound dropSound;
     Music music;
+
     Sprite bucketSprite;
+
     Vector2 touchPos;
+
     Array<Sprite> dropSprites;
     float dropTimer;
+
     Rectangle bucketRectangle;
     Rectangle dropRectangle;
-    int dropsGathered;
+
+    int myHP = 10;
+    int myDMG = 1;
+    int enemyHP = 20;
+    int enemyDMG = 2;
 
     public FirstScreen(final Main game) {
         this.game = game;
@@ -108,7 +117,7 @@ public class FirstScreen implements Screen {
 
             if (dropSprite.getY() < -dropHeight) dropSprites.removeIndex(i);
             else if (bucketRectangle.overlaps(dropRectangle)) {
-                dropsGathered++;
+                myHP -= enemyDMG;
                 dropSprites.removeIndex(i);
                 dropSound.play();
             }
@@ -133,7 +142,7 @@ public class FirstScreen implements Screen {
         game.batch.draw(backgroundTexture, 0, 0, worldWidth, worldHeight);
         bucketSprite.draw(game.batch);
 
-        game.font.draw(game.batch, "Drops collected: " + dropsGathered, 0, worldHeight);
+        game.font.draw(game.batch, "myHP: " + myHP +  "\nenemyHP: " + enemyHP, 0, worldHeight);
 
         for (Sprite dropSprite : dropSprites) {
             dropSprite.draw(game.batch);
