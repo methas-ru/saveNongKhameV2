@@ -8,7 +8,9 @@ import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
@@ -19,9 +21,18 @@ public class FirstScreen implements Screen {
     final Main game;
 
     Texture backgroundTexture;
-    Texture myTexture;
-    Texture enemyTexture;
-    Texture dropTexture;
+    Animation<TextureRegion> heroAnimation;
+    float stateTime;
+    Animation<TextureRegion> badAnimation;
+    enum WeaponType{
+        fan1,fan2
+    }
+    WeaponType enemyWeapon;
+    Texture fan1Texture;
+    Texture fan2Texture;
+    Sprite weaponSprite; //Spite to show weapon
+    Array<Sprite> enemyWeaponProjectiles;
+    float enemyWeaponTimer = 0f;
 
     Sound dropSound;
     Music music;
@@ -30,10 +41,6 @@ public class FirstScreen implements Screen {
     Sprite enemySprite;
 
     Vector2 touchPos;
-
-    Array<Sprite> dropSprites;
-    Array<Sprite> myDropSprites;
-    float dropTimer;
     float myDropTimer;
 
     Rectangle myRectangle;
@@ -46,27 +53,58 @@ public class FirstScreen implements Screen {
     int myDMG = 1;
     int enemyHP = 20;
     int enemyDMG = 2;
-
+    float weaponChangeTimer = 0f;
     public FirstScreen(final Main game) {
         this.game = game;
 
         // load the images for the background, bucket and droplet
         backgroundTexture = new Texture("background.png");
-        myTexture = new Texture("bucket.png");
-        enemyTexture = new Texture("bucket.png");
-        dropTexture = new Texture("drop.png");
-
+        //myTexture = new Texture("Hero.gif");
+        TextureRegion[] heroFrames=new TextureRegion[5];
+        heroFrames[0]=new TextureRegion(new Texture("HeroFight1.png"));
+        heroFrames[1]=new TextureRegion(new Texture("HeroFight2.png"));
+        heroFrames[2]=new TextureRegion(new Texture("HeroFight3.png"));
+        heroFrames[3]=new TextureRegion(new Texture("HeroFight4.png"));
+        heroFrames[4]=new TextureRegion(new Texture("HeroFight5.png"));
+        heroAnimation=new Animation<TextureRegion>(0.7f,heroFrames);
+        heroAnimation.setPlayMode(Animation.PlayMode.LOOP);
+        stateTime=0f; //start when 0 sec
+        //enemyTexture = new Texture("Bad.gif");
+        TextureRegion[] badFrames=new TextureRegion[5];
+        badFrames[0]=new TextureRegion(new Texture("BadPlay1.png"));
+        badFrames[1]=new TextureRegion(new Texture("BadPlay2.png"));
+        badFrames[2]=new TextureRegion(new Texture("BadPlay3.png"));
+        badFrames[3]=new TextureRegion(new Texture("BadPlay4.png"));
+        badFrames[4]=new TextureRegion(new Texture("BadPlay5.png"));
+        badAnimation=new Animation<>(0.7f,badFrames);
+        badAnimation.setPlayMode(Animation.PlayMode.LOOP);
+        stateTime=0f;
+        //dropTexture = new Texture("drop.png");
+        fan1Texture=new Texture("badW1.png");
+        fan2Texture=new Texture("badW2.png");
+        //random weapon
+        enemyWeapon=MathUtils.randomBoolean()?WeaponType.fan1:WeaponType.fan2;
+        if(enemyWeapon==WeaponType.fan1){
+            weaponSprite=new Sprite(fan1Texture);
+        }else{
+            weaponSprite=new Sprite(fan2Texture);
+        }
+        weaponSprite.setSize(1f,1f);
+        enemyWeaponProjectiles = new Array<>();
         // load the drop sound effect and background music
         dropSound = Gdx.audio.newSound(Gdx.files.internal("drop.mp3"));
-        music = Gdx.audio.newMusic(Gdx.files.internal("music.mp3"));
+        music = Gdx.audio.newMusic(Gdx.files.internal("satu99.mp3"));
         music.setLooping(true);
         music.setVolume(0.5F);
-
-        mySprite = new Sprite(myTexture);
+        TextureRegion firstFrame=heroAnimation.getKeyFrame(0);
+        mySprite=new Sprite(firstFrame);
+        //mySprite = new Sprite(myTexture);
         mySprite.setSize(1, 1);
         mySprite.setPosition(0,0);
 
-        enemySprite = new Sprite(myTexture);
+        //enemySprite = new Sprite(enemyTexture);
+        TextureRegion startFrame=badAnimation.getKeyFrame((0));
+        enemySprite=new Sprite(startFrame);
         enemySprite.setSize(1, 1);
         float worldHeight = game.viewport.getWorldHeight();
         float enemyWidth = enemySprite.getWidth();
@@ -78,10 +116,17 @@ public class FirstScreen implements Screen {
         enemyRectangle = new Rectangle();
         dropRectangle = new Rectangle();
         myDropRectangle = new Rectangle();
-
-        dropSprites = new Array<>();
-        myDropSprites = new Array<>();
     }
+    private void createEnemyWeaponProjectile() {
+        Sprite proj = new Sprite(weaponSprite);   // clone รูปอาวุธปัจจุบัน
+        proj.setSize(0.5f, 0.5f);                  // กำหนดขนาดอาวุธที่ยิง
+        proj.setPosition(
+            enemySprite.getX() + enemySprite.getWidth() / 2f - proj.getWidth() / 2f,
+            enemySprite.getY()
+        );
+        enemyWeaponProjectiles.add(proj);
+    }
+
 
     @Override
     public void show() {
@@ -119,14 +164,6 @@ public class FirstScreen implements Screen {
 
         //input mySprite shooting
 
-        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
-            myDropTimer += delta;
-            if (myDropTimer > 1f) {
-                myDropTimer = 0;
-                createMyDroplet();
-            }
-        }
-
         //enemy movement
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
             enemySprite.translateX(enemySpeed * delta);
@@ -144,7 +181,7 @@ public class FirstScreen implements Screen {
         float myWidth = mySprite.getWidth();
         float myHeight = mySprite.getHeight();
 
-        float enemyWidth = enemySprite.getWidth();
+         float enemyWidth = enemySprite.getWidth();
         float enemyHeight = enemySprite.getHeight();
 
         float delta = Gdx.graphics.getDeltaTime();
@@ -154,46 +191,40 @@ public class FirstScreen implements Screen {
 
         enemySprite.setX(MathUtils.clamp(enemySprite.getX(), 0, worldWidth - myWidth));
         enemyRectangle.set(enemySprite.getX(), enemySprite.getY(), enemyWidth, enemyHeight);
+        weaponSprite.setPosition(
+            enemySprite.getX() + enemySprite.getWidth() / 2f - weaponSprite.getWidth() / 2f,
+            enemySprite.getY() + enemySprite.getHeight() / 2f
+        );
+        weaponChangeTimer += delta;
+        if (weaponChangeTimer >0.1f) {
+            weaponChangeTimer = 0;
+            enemyWeapon = MathUtils.randomBoolean() ? WeaponType.fan1 : WeaponType.fan2;
+            if (enemyWeapon == WeaponType.fan1) {
+                weaponSprite.setTexture(fan1Texture);
+            } else {
+                weaponSprite.setTexture(fan2Texture);
+            }
+        }
+        enemyWeaponTimer += delta;
+        if (enemyWeaponTimer > 1f) {
+            enemyWeaponTimer = 0f;
+            createEnemyWeaponProjectile();
+        }
+        for (int i = enemyWeaponProjectiles.size - 1; i >= 0; i--) {
+            Sprite proj = enemyWeaponProjectiles.get(i);
+            proj.translateY(-2f * delta);  // projectile เลื่อนลง (ศัตรูยิงลง)
+            Rectangle projRect = new Rectangle(proj.getX(), proj.getY(), proj.getWidth(), proj.getHeight());
 
-        //create enemyDropSprite
-        for (int i = dropSprites.size - 1; i >= 0; i--) {
-            Sprite dropSprite = dropSprites.get(i);
-            float dropWidth = dropSprite.getWidth();
-            float dropHeight = dropSprite.getHeight();
-
-            dropSprite.translateY(-2f * delta);
-            dropRectangle.set(dropSprite.getX(), dropSprite.getY(), dropWidth, dropHeight);
-
-            if (dropSprite.getY() < -dropHeight) dropSprites.removeIndex(i);
-            else if (myRectangle.overlaps(dropRectangle)) {
-                myHP -= enemyDMG;
-                dropSprites.removeIndex(i);
+            if (proj.getY() < -proj.getHeight()) {
+                enemyWeaponProjectiles.removeIndex(i); // ออกนอกจอลบ projectile
+            } else if (myRectangle.overlaps(projRect)) {
+                myHP -= enemyDMG;                         // player โดนโจมตี
+                enemyWeaponProjectiles.removeIndex(i);
                 dropSound.play();
             }
         }
 
-        dropTimer += delta;
-        if (dropTimer > 1f) {
-            dropTimer = 0;
-            createDroplet();
-        }
 
-        //create myDropSprite
-        for (int i = myDropSprites.size - 1; i >= 0; i--) {
-            Sprite dropSprite = myDropSprites.get(i);
-            float dropWidth = dropSprite.getWidth();
-            float dropHeight = dropSprite.getHeight();
-
-            dropSprite.translateY(+2f * delta);
-            myDropRectangle.set(dropSprite.getX(), dropSprite.getY(), dropWidth, dropHeight);
-
-            if (dropSprite.getY() < -dropHeight) myDropSprites.removeIndex(i);
-            else if (enemyRectangle.overlaps(myDropRectangle)) {
-                enemyHP -= myDMG;
-                myDropSprites.removeIndex(i);
-                dropSound.play();
-            }
-        }
     }
 
     private void draw() {
@@ -206,48 +237,24 @@ public class FirstScreen implements Screen {
         float worldHeight = game.viewport.getWorldHeight();
 
         game.batch.draw(backgroundTexture, 0, 0, worldWidth, worldHeight);
-        mySprite.draw(game.batch);
-        enemySprite.draw(game.batch);
-
+        //mySprite.draw(game.batch);
+        stateTime+=Gdx.graphics.getDeltaTime();
+        TextureRegion currentFrame=heroAnimation.getKeyFrame(stateTime,true);
+        //draw currentFrame instead mySpite
+        game.batch.draw(currentFrame,mySprite.getX(),mySprite.getY(),mySprite.getWidth(),mySprite.getHeight());
+        //enemySprite.draw(game.batch);
+        stateTime+=Gdx.graphics.getDeltaTime();
+        TextureRegion nowFrame=badAnimation.getKeyFrame(stateTime,true);
+        game.batch.draw(nowFrame,enemySprite.getX(),enemySprite.getY(),enemySprite.getWidth(),enemySprite.getHeight());
+        weaponSprite.draw(game.batch);
 
         game.font.draw(game.batch, "myHP: " + myHP +  "\nenemyHP: " + enemyHP, 0, worldHeight);
-
-        for (Sprite dropSprite : dropSprites) {
-            dropSprite.draw(game.batch);
+        for (Sprite proj : enemyWeaponProjectiles) {
+            proj.draw(game.batch);
         }
-
-        for (Sprite myDropSprite : myDropSprites) {
-            myDropSprite.draw(game.batch);
-        }
-
         game.batch.end();
-    }
 
-    private void createDroplet() {
-        float dropWidth = 1;
-        float dropHeight = 1;
-        float worldWidth = game.viewport.getWorldWidth();
-        float worldHeight = game.viewport.getWorldHeight();
-
-        Sprite dropSprite = new Sprite(dropTexture);
-        dropSprite.setSize(dropWidth, dropHeight);
-        dropSprite.setX(enemySprite.getX());
-        dropSprite.setY(enemySprite.getY());
-        dropSprites.add(dropSprite);
-    }
-
-    private void createMyDroplet() {
-        float dropWidth = 1f;
-        float dropHeight = 1f;
-        float worldWidth = game.viewport.getWorldWidth();
-        float worldHeight = game.viewport.getWorldHeight();
-
-        Sprite dropSprite = new Sprite(dropTexture);
-        dropSprite.setSize(dropWidth, dropHeight);
-        dropSprite.setX(mySprite.getX());
-        dropSprite.setY(mySprite.getY());
-        myDropSprites.add(dropSprite);
-    }
+        }
 
     @Override
     public void resize(int width, int height) {
@@ -269,10 +276,12 @@ public class FirstScreen implements Screen {
     @Override
     public void dispose() {
         backgroundTexture.dispose();
-        dropSound.dispose();
+        //dropSound.dispose();
         music.dispose();
-        dropTexture.dispose();
-        myTexture.dispose();
-        enemyTexture.dispose();
+        fan1Texture.dispose();
+        fan2Texture.dispose();
+        //dropTexture.dispose();
+        //myTexture.dispose();
+        //enemyTexture.dispose();
     }
 }
